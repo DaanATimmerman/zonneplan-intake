@@ -22,3 +22,10 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+/vendor/
+node_modules/
+auth.json
+.idea
+.idea/*
+/public/vendor/
+/public/coverage/

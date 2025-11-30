@@ -1,3 +1,7 @@
 <x-app-layout>
-b
+    <div class="flex items-start">
+        <x-electricity-price-widget/>
+
+        <x-gas-price-widget/>
+    </div>
 </x-app-layout>

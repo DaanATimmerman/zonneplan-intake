@@ -1,0 +1,174 @@
+#!/bin/bash
+# =========================================================
+# Taskfile gives you a set of quick tasks for your project
+# =========================================================
+
+function banner {
+	echo -e "${BLUE}\n"\
+	"███████╗ ██████╗ ███╗   ██╗███╗   ██╗███████╗██████╗ ██╗      █████╗ ███╗   ██╗\n"\
+	"╚══███╔╝██╔═══██╗████╗  ██║████╗  ██║██╔════╝██╔══██╗██║     ██╔══██╗████╗  ██║\n"\
+	"  ███╔╝ ██║   ██║██╔██╗ ██║██╔██╗ ██║█████╗  ██████╔╝██║     ███████║██╔██╗ ██║\n"\
+	" ███╔╝  ██║   ██║██║╚██╗██║██║╚██╗██║██╔══╝  ██╔═══╝ ██║     ██╔══██║██║╚██╗██║\n"\
+	"███████╗╚██████╔╝██║ ╚████║██║ ╚████║███████╗██║     ███████╗██║  ██║██║ ╚████║\n"\
+	"╚══════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝${RESET}"
+}
+
+# =========================================================
+## Project
+# =========================================================
+
+function task:init { ## Initialise the project for local development
+    cp -n .env.example .env || true
+    composer install --ignore-platform-reqs
+    task:start
+	task:update
+    task:artisan key:generate
+    task:artisan storage:link
+}
+
+function task:start { ## Start the project
+    task:sail up -d
+}
+
+function task:stop { ## Stop the project
+    task:sail down
+}
+
+function task:restart { ## Restart the project
+    task:stop
+    task:start
+}
+
+function task:update { ## Stop the project containers.
+    task:sail composer install
+    task:assets
+    task:migrate
+    task:clear
+    task:clear-logs
+}
+
+function task:build { ## Build the project containers
+    task:sail build --no-cache
+    task:start
+}
+
+function task:check {
+    task:format
+    task:pest
+}
+
+function task:assets { ## Build assets
+    npm install
+    npm run build
+}
+
+function task:watch { ## Start development bundler
+    npm install
+    npm run dev
+}
+
+# =========================================================
+## Testing
+# =========================================================
+
+function task:format { ## Run linting and fix code style
+    task:pint
+    task:phpstan
+}
+
+function task:phpstan { ## Run php code analyser
+    task:exec php vendor/bin/phpstan analyse --memory-limit=1G
+}
+
+function task:pint { ## Run pint formatter
+    task:exec php vendor/bin/pint
+}
+
+function task:pest { ## Run pest tests
+    task:exec php vendor/bin/pest --parallel
+}
+
+function task:pest:coverage { ## Run tests with coverage
+    task:exec php vendor/bin/pest --parallel --coverage --coverage-html public/coverage
+    echo "Open coverage: ./public/coverage/index.html"
+}
+
+# =========================================================
+## Laravel
+# =========================================================
+
+function task:artisan { ## Run any artisan command
+    task:sail artisan "$@"
+}
+
+function task:sail { ## Run any sail command
+    vendor/bin/sail "$@"
+}
+
+function task:exec { ## Run any command
+    vendor/bin/sail run "$@"
+}
+
+function task:clear { ## Clear caches
+    task:artisan cache:clear
+    task:artisan optimize:clear
+}
+
+function task:clear-logs { ## Clear application logs
+    rm -rf storage/logs/*.log
+}
+
+function task:horizon { ## Start horizon queue worker
+    task:artisan horizon
+}
+
+function task:schedule { ## Run scheduler
+    task:artisan schedule:work
+}
+
+# =========================================================
+## Database
+# =========================================================
+
+function task:migrate { ## Run the migrations
+    task:artisan migrate
+}
+function task:migrate:fresh { ## Run the migrations and seeder
+    task:artisan migrate:fresh --seed
+}
+
+# =========================================================
+## Taskfile
+# =========================================================
+
+set -eo pipefail
+
+BLUE=$(printf '\033[36m')
+YELLOW=$(printf '\033[33m')
+RED=$(printf '\033[31m')
+GREEN=$(printf '\033[32m')
+RESET=$(printf '\033[0m')
+
+# Define global variables here
+
+function title {
+	echo -e "\n${BLUE}=>${RESET} $1\n"
+}
+
+function task:help { ## Show all available tasks
+	title "Available tasks"
+	awk 'BEGIN {FS = " { [#][#][ ]?"} /^([a-zA-Z_-]*:?.*)(\{ )?[#][#][ ]?/ \
+		{printf "\033[33m%-34s\033[0m %s\n", $1, $2}' $0 |\
+		sed -E "s/[#]{2,}[ ]*/${RESET}/g" |\
+		sed -E "s/function task:*/  /g"
+	echo -e "\n${BLUE}Usage:${RESET} ./Taskfile ${YELLOW}<task>${RESET} <args>"
+}
+
+banner
+if [[ ! "$(declare -F task:${@-help})" ]]; then
+	title "Task not found"
+	echo -e "Task ${RED}$1${RESET} doesn't exist."
+	task:help
+	exit 1
+fi
+task:${@-help}

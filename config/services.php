@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'zonneplan' => [
+        'base_api_url' => env('ZONNEPLAN_BASE_API_URL'),
+        'api_key' => env('ZONNEPLAN_API_KEY'),
+    ],
 ];
